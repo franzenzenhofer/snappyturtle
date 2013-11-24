@@ -1,0 +1,34 @@
+<head>
+  <title>snappyturtle</title>
+</head>
+
+<body>
+  {{> svgworld}}
+  {{> editor}}
+</body>
+
+<template name="svgworld">
+  <svg id="svg"></svg>
+</template>
+
+<template name="editor">
+    <div  id="editor">reset
+step 50
+set 200 200
+
+make square 
+  color red
+  loop 2
+    go 50 right 90
+  loopend
+  color black
+  loop 2
+    go 50 right 90
+  loopend
+makeend
+
+loop 10
+  square
+  left 25
+loopend</div>
+</template>

@@ -1,0 +1,60 @@
+reset
+step 1
+set 400 200
+
+make kopf
+    loop 360
+    go 1
+    right 1
+    LOOPEND
+makeend
+
+MAKE AUGE
+    loop 90
+    go 1
+    left 4
+    loopend
+makeend
+
+MAKE NASE
+    loop 22
+        go 1
+        left 4
+    loopend
+MAKEEND
+
+MAKE mund
+    loop 90
+        go 1
+        left 2
+    loopend
+makeend
+    
+make gesicht
+    kopf
+    right 90
+    jump 45
+    left 90
+    jump 30
+    auge
+    left 180
+    jump 40
+    left -90
+    jump 15
+    AUGE
+    right 180
+    jump 25
+    nase
+    right 90
+    jump 10
+    right 90
+    jump 30
+    left 90
+    mund
+makeend
+
+loop 8
+gesicht
+jump 180
+left 180
+loopend
