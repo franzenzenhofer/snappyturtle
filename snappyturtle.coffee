@@ -8,8 +8,12 @@ tokenizer = (s) ->
   r = s.match(/[A-Z0-9\-]+/g)
   return r
 
+rand = (min = 0, max = 255) -> 
+  Math.floor(Math.random() * (max - min + 1)) + min
+#vector calc stuff
 Point = {}
 
+#SVG
 S = {}
 
 DEFAULT_TURTLE = 
@@ -22,10 +26,33 @@ DEFAULT_TURTLE =
   stroke: '#000'
   fill: '#000'
   strokeWidth: 2
-
-TURTLEICON = {}
+  _visible: true
 
 MyTu  = _.clone(DEFAULT_TURTLE)
+
+_T_U_R_T_L_E_I_C_O_N_ = false 
+drawTurtle = (turtle, svg = S) -> 
+  x = turtle._x
+  y = turtle._y
+  if _T_U_R_T_L_E_I_C_O_N_
+    _T_U_R_T_L_E_I_C_O_N_.remove()
+
+  if turtle._visible is false then return false
+  
+  _T_U_R_T_L_E_I_C_O_N_ = S.group(
+    S.circle(x,y-10,4).attr({fill:'lightgreen'})
+    S.circle(x+6,y-4,3).attr({fill:'lightgreen'})
+    S.circle(x-6,y-4,3).attr({fill:'lightgreen'})
+    S.circle(x+6,y+4,3).attr({fill:'lightgreen'})
+    S.circle(x-4,y+4,3).attr({fill:'lightgreen'})
+    S.circle(x,y,8).attr({fill:'green'})
+  )
+  _T_U_R_T_L_E_I_C_O_N_.attr({'opacity':0.8})
+  r = 90+Snap.angle(x,y, turtle._old_x, turtle._old_y)
+  _T_U_R_T_L_E_I_C_O_N_.attr({'transform': 'rotate('+r+', '+x+','+y+')'})
+  return true
+
+
 
 calc = (turtle, length = 0, rotate_degrees = null, update = true) ->
   vector = new Point( turtle._x - turtle._old_x, turtle._y - turtle._old_y)
@@ -48,19 +75,7 @@ updateTurtle = (turtle, x, y) ->
   turtle._old_x = turtle._x
   turtle._x = x
   turtle._y = y
-  TURTLEICON = S.group(
-    S.circle(14,4,4).attr({fill:'lightgreen'})
-    S.circle(20,10,3).attr({fill:'lightgreen'})
-    S.circle(8,10,3).attr({fill:'lightgreen'})
-    S.circle(20,18,3).attr({fill:'lightgreen'})
-    S.circle(8,18,3).attr({fill:'lightgreen'})
-    S.circle(14,14,8).attr({fill:'green'})
-  )
-  console.log(TURTLEICON)
-  TURTLEICON.attr(
-    x: turtle._x
-    y: turtle._y
-  )
+  drawTurtle(turtle)
   return turtle
 
 dlog = (msg, debug = _DEBUG_ ) -> 
@@ -76,13 +91,16 @@ F =
   "RIGHT": (args, tokens) -> MyTu._next_r = MyTu._next_r + args[0]; return tokens
   "COLOR": (args, tokens) -> color(MyTu, args); return tokens
   "POINT": (args, tokens) -> point(MyTu, args); return tokens
-  "LOOP": (args, tokens) -> loopit(args, tokens) #function returns tokens
+  "REPEAT": (args, tokens) -> repeat(args, tokens) #function returns tokens
   "STEP": (args, tokens) -> step(MyTu, args); return tokens
   "MAKE": (args, tokens) -> make(args, tokens) # function returns tokens
-  "LOOPEND": (args, tokens) -> error('loopoend without start'); return tokens #do nothing as there is no loop-start
+  "LOOP": (args, tokens) -> error('repeat/loop end without start'); return tokens #do nothing as there is no loop-start
   "MAKEEND": (args, tokens) -> error('makeend without start'); return tokens
   "RESET": (args, tokens) -> reset(MyTu, args); return tokens
   "CLEAN": (args, tokens) -> clean(MyTu, args); return tokens
+  "HIDE": (args, tokens) -> MyTu._visible = false; return tokens
+  "SHOW": (args, tokens) -> MyTu._visible = true; return tokens
+  "TOGGLE": (args, tokens) -> MyTu._visible = !MyTu._visible; return tokens
 
 clean = (turtle, args) ->
   S.clear()
@@ -92,8 +110,6 @@ reset = (turtle, args) ->
   clean()
   turtle = MyTu = _.clone(DEFAULT_TURTLE)
   return turtle
-
-
 
 step = (turtle, args) ->
   if args[0]
@@ -115,11 +131,10 @@ collectTokens = (tokens, start, end) ->
   error(start+' without a '+end)
   return tokens
 
-
 make = (args, tokens) ->
   if not args[0] then return tokens
   tokens_clone = tokens.slice(0)
-  collected_tokens = collectTokens(tokens, 'MAKE', 'MAKEEND')
+  collected_tokens = collectTokens(tokens, 'MAKE', 'END')
   #dlog(tokens_clone)
   tokens_clone = tokens_clone.slice(collected_tokens.length+1)
   #dlog(tokens_clone)
@@ -128,70 +143,64 @@ make = (args, tokens) ->
       tokens_clone[i] = collected_tokens
   _.flatten(tokens_clone)
   
-
-
-loopit = (args, tokens) ->
+repeat = (args, tokens) ->
   if not args[0] then return tokens
-  nested = 1
-  collected_tokens = []
-  cloned_tokens = tokens.slice(0)
-  #we can't reuse collectTOkens, as we do not know if we encountered a loopend or not
-  for t in tokens
-    if t is "LOOP"
-      nested = nested + 1
-      #dlog(nested)
-      #dlog(cloned_tokens)
-    else if t is "LOOPEND"
-      #dlog('a loopend found')
-      #dlog(cloned_tokens)
-      nested = nested - 1
-      #dlog(nested)
-      if nested is 0
-        cloned_tokens.shift()
-        multiple_collected_tokens = []
-        for num in [0...args[0]]
-          multiple_collected_tokens = multiple_collected_tokens.concat(collected_tokens) 
-        return multiple_collected_tokens.concat(cloned_tokens)
-        break 
-    collected_tokens.push(cloned_tokens.shift())
-  #dlog('no suitable loopend has been found')
-  error('loop without a loopend')
-  return tokens
+  tokens_clone = tokens.slice(0)
+  collected_tokens = collectTokens(tokens, 'REPEAT', 'LOOP')
+  tokens_clone = tokens_clone.slice(collected_tokens.length+1)
+  for i in [0 ... args[0]]
+    tokens_clone.unshift(collected_tokens)
+  _.flatten(tokens_clone)
 
 
 set = (turtle, args) ->
-
   temp_x = args[0] ? turtle._x
   temp_y = args[1] ? turtle._y
-
   turtle._old_x = temp_x - (turtle._x - turtle._old_x)
   turtle._old_y = temp_y - (turtle._y - turtle._old_y)  
-
   turtle._x = temp_x
   turtle._y = temp_y 
   return turtle
 
+lengthparser = (args) ->
+  if args.length is 0 then return false
+
+  if args.length is 1
+    le = parseInt(args[0])
+
+  if args.length > 1
+    le = rand(parseInt(args[0]), parseInt(args[1]))
+
+  return le
+
 go = (turtle, args) ->
-  [new_x, new_y] = calc(turtle, args[0])
+  le = lengthparser(args)
+  if le is false then return false
+
+  [new_x, new_y] = calc(turtle, le)
   l = S.line(turtle._x, turtle._y, new_x, new_y).attr(turtle)
   updateTurtle(turtle, new_x, new_y)
 
 jump = (turtle, args) ->
+  le = lengthparser(args)
+  if le is false then return false
+  
   [new_x, new_y] = calc(turtle, args[0])
   updateTurtle(turtle, new_x, new_y)
 
 color = (turtle, args) ->
   if args.length >= 3
-    turtle.stroke = turtle.fill = 'rgb('+args[0]+','+args[1]+','+args[2]+')'
-  if args.length is 1
-    turtle.stroke = turtle.fill = args[0]
+    turtle.stroke = turtle.fill = 'rgb('+args[0]+','+args[1]+','+args[3]+')'
+  else
+    if args[0] is 'BUNT'
+      turtle.stroke = turtle.fill = 'rgb('+rand()+','+rand()+','+rand()+')'
+    else
+      turtle.stroke = turtle.fill = args[0]
   return turtle
 
 point = (turtle, args) ->
   d = args[0] ? 5
   S.circle(turtle._x, turtle._y, d).attr(turtle)
-
-
 
 type_it = (x) ->
   if (xi = parseInt(x))+'' is x
@@ -203,10 +212,8 @@ preparser = () -> console.log('preparser')
 
 execute_loop = (tokens) ->
   t = tokens.shift()
-  #dlog(t)
   args = []
   if (e = F[t])
-    #dlog(e)
     tokens_clone = tokens.slice(0)
     for x in tokens_clone
       if not F[x]
@@ -219,23 +226,12 @@ execute_loop = (tokens) ->
     MAIN_LOOP =  Meteor.setTimeout((->execute_loop(tokens)), MyTu._step)
 
 
-
-#test = "GO 50 LEFT 45 JUMP 30 GO 40 -20 30 50 RIGHT 50 GO 100 COLOR RED POINT"
-#test = "SET 80 80 JUMP 100 GO 90 RIGHT 90 SET 200 200 COLOR 255 77 0 LOOP 2 GO 50 RIGHT 25 LOOP 2 GO 10 RIGHT 15 LOOPEND LOOPEND JUMP 50 GO 50 POINT 40 LEFT 90 GO 50 LEFT 90 GO 50"
-#test = "set 200 200 loop 10 go 40 left 45 loop step 500 2 go 10 left 90 loopend step 100 loopend"
-#test = "set 200 200 step 100 loop 2 go 10 loop color black go 20 color red go 20 loopend left 45 loopend"
-#test = "set 200 200 loop 4 go 25 loop 2 color red go 25 loopend color black left 90 loopend"
-test = "step 50 set 200 200 make line go 100 makeend make square loop 4 line right 90 loopend makeend 
-loop 100 square left 11 loopend"
-
 if Meteor.isClient
   Point = window.paper.Point
   editor = {}
 
   getAndExecute = () ->
     Meteor.clearTimeout(MAIN_LOOP)
-    #RESET THE TURTLE
-    #S.clear()
     Session.set('code', editor.getValue())
     tokens = tokenizer(Session.get('code'))
     execute_loop(tokens)
@@ -246,23 +242,17 @@ if Meteor.isClient
   )
 
   svg_render_count = 0 
-  #there was a bug with created
   Template.svgworld.rendered = () ->
       if svg_render_count is 0
         S = Snap('#svg')
-
-        #smallCircle = S.circle(100, 150, 70)
       svg_render_count = svg_render_count + 1
 
   editor_render_count = 0
   Template.editor.rendered = () ->
     if editor_render_count is 0
-      #editor = @find('#editor')
       editor = ace.edit("editor")
       getAndExecute()
     editor_render_count = editor_render_count + 1
-    #tokens = tokenizer(editor.innerHTML)
-    #execute_loop(tokens)
 
 
 
