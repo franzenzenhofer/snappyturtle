@@ -5,6 +5,7 @@
 <body>
   {{> svgworld}}
   {{> editor}}
+  {{> buttons}}
 </body>
 
 <template name="svgworld">
@@ -14,10 +15,29 @@
 <template name="editor">
     <div  id="editor">reset
 step 50
-set 200 200
-repeat 10
-  go 10
-  left 25
-  color bunt
-loop</div>
+set 400 300
+
+learn circle
+  step 1
+  loop 90
+    go 1
+    left 4
+  again
+end
+
+loop 12
+  color
+  circle
+  left 12
+  jump 10
+again
+
+step 50</div>
+</template>
+
+<template name="buttons">
+  <div id="actions">
+  <button id="run" class="pure-button pure-button-primary" title="Cmd + R">Run</button>
+  <button id="help" class="pure-button pure-button-help" title="Cmd + H">Help</button>
+  </div>
 </template>
